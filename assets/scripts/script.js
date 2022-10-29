@@ -116,6 +116,10 @@ function manhattan(pos0, pos1) {
     return d1 + d2;
 }
 
+function byField(field) {
+    return (a, b) => a[field] > b[field] ? 1 : -1;
+  }
+
 function unduplicate(arr) {
     let result=[];
     for(let i=0;i<arr.length;i++) {
@@ -217,7 +221,7 @@ class Cell {
         console.log(this)
         cellDrag.addEventListener('drag', this.moveCell);
         cellDrop.addEventListener('dragover', (e)=>e.preventDefault());
-        cellDrop.addEventListener('drop', this.moveCell);
+        cellDrag.addEventListener('drop', cellDrag.moveCell);
     }
 }
 
@@ -304,6 +308,7 @@ class Game {
         $timer.innerHTML = '';
         $gameBoard.innerHTML = '';
 
+        let savedGamescount = 1;
         if (!size) size = $fieldSize.value;
         counter = 0;
         $movesCount.innerHTML = String(counter);
@@ -327,7 +332,10 @@ class Game {
             let ranImg = images[Math.floor(Math.random() * images.length)];
             this.renderCells(sequence, arr, order, size, cells, ranImg);
             $solvePuzzleBTN.addEventListener('click', ()=>{
-                game.solvePuzzle(cells, sequence, size, order);
+                game.solvePuzzle(cells, sequence, size, order, ranImg);
+            })
+            $reviveGame.addEventListener('click', () => {
+                game.getSavedGame(sequence, size, order, cells, ranImg);
             })
         })
 
@@ -340,7 +348,7 @@ class Game {
             this.saveGame(cells);
         });
         window.addEventListener('onbeforeunload', () =>{
-            game.saveGame(cells);
+            game.saveGame(cells, savedGamescount);
         })
         makeTimer();
 
@@ -349,7 +357,7 @@ class Game {
                 let $reviveGame = (!document.querySelector('revive-game')) ? makeElem('button', 'revive-game', 'Revive game') : document.querySelector('revive-game');
                 $lowerGameMenu.prepend($reviveGame);
                 $reviveGame.addEventListener('click', () => {
-                    game.getSavedGame(arr, size);
+                    game.getSavedGame(sequence, size, order, cells);
                 })
             }
 
@@ -360,7 +368,7 @@ class Game {
     }
 
     renderCells(sequence = null, arr, order=null, size, cells, image=null) {
-        
+        console.log(arr)
         $gameBoard.innerHTML = '';
         for(let i = 0; i < size; ++i){
             let $row = makeElem('div', 'row');
@@ -434,14 +442,25 @@ class Game {
         return sequence;
     }
 
-    saveGame(cells) {
-        set('gameState', JSON.stringify(cells));
+    saveGame(cells, savedGamescount) {
+        set(`gameState${savedGamescount}`, JSON.stringify(cells));
+        savedGamescount++;
     }
 
-    getSavedGame(arr, size){
+    getSavedGame(sequence, size, order, image=null){
         let state = JSON.parse((get('gameState')));
-        console.log(state)
-        this.renderCells(arr, size, state);
+        state = state.flat()
+
+
+        let arrVal = getValuesCells(state);
+        let arrSP = makeArrDeep(arrVal, size);
+
+        if (image !== null) {
+            this.renderCells(sequence, arrSP, order, size, state, image);
+        } 
+        else {
+            this.renderCells(sequence, arrSP, order, size, state);
+        }
     }
 
     solvePuzzle(arrCells, sequence, size, order, image) {
@@ -452,25 +471,32 @@ class Game {
             if (sequenceUni[i].i2){
                 swap(arr,sequenceUni[i].i2,sequenceUni[i].j2,sequenceUni[i].i1,sequenceUni[i].j1); 
             }
-        }
-
-        console.log(sequenceUni);
-
-        //let arrVal = getValuesCells(arrCells);
-        //let arrSP = makeArrDeep(arrVal, 4);
-        
+        }      
         arrCells = arrCells.flat(1);
         arrCells = arrCells.slice(0, size*size);
-        arrCells = arrCells.sort((prev, next)=>prev.value<next.value);
-        
-        console.log(arrCells);
+        arrCells = arrCells.sort(byField('value'));
+        arrCells.push(arrCells[0]);
+        arrCells.shift();
+
+        let arrVal = getValuesCells(arrCells);
+        let arrSP = makeArrDeep(arrVal, size);
+
         $gameBoard.innerHTML = '';
         if (image !== null) {
-            this.renderCells(sequence, arr, order, size, arrCells, image);
+            this.renderCells(sequence, arrSP, order, size, arrCells, image);
+            if (!document.querySelector('.congratulations')) {
+                let $congratulations = makeElem('div', 'congratulations');
+                $congratulations.innerHTML = 'You are a cheater!';
+                $body.appendChild($congratulations);
+            }
         }
         else {
-            this.renderCells(sequence, arr, order, size, arrCells);
+            this.renderCells(sequence, arrSP, order, size, arrCells);
         }
+    }
+
+    chooseSavedGame () {
+
     }
 
     isSolved(arr, arrCells, size){
