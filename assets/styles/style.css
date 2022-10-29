@@ -6,13 +6,15 @@
 
 body {
     font-family: 'Noto Sans JP', sans-serif;
+    max-height: 100vh;
+    min-height: auto;
 }
 
 .game-board {
     margin: 0 auto;
     padding: 0;
     background-color: #E8E4E0;
-    width: 50vw;
+    width: 50vh;
     min-height: 50vh;
     height: max-content;
     display: flex;
@@ -61,8 +63,6 @@ body {
     text-align: center;
     width: 3rem;
 }
-
-
 
 .row {
     width: 100%;
