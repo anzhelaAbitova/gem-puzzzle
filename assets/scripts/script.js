@@ -13,6 +13,9 @@ const makeElem = (type, className, text= '') => {
 let $gameBoard = makeElem('div', 'game-board');
 let $resetBTN = makeElem('button', 'reset-btn', 'New game');
 let $saveGameBTN = makeElem('button', 'savegame-btn', 'Save game');
+let $gameMenu = makeElem('div', 'game-menu');
+let $audio = makeElem('audio', 'cells-audio');
+
 
 let counter = 0;
 let $movesCount = makeElem('div', 'moves-count', String(counter));
@@ -26,12 +29,16 @@ for (let i=3;i<9;i++) {
     if (i===4){option.selected = true}
 }
 
-$body.appendChild($gameBoard);
-$body.appendChild($resetBTN);
-$body.appendChild($saveGameBTN);
-$body.appendChild($movesCount);
-$body.appendChild($fieldSize);
-$body.appendChild($solvePuzzleBTN);
+$body.prepend($gameBoard);
+$body.prepend($gameMenu);
+$body.prepend($audio);
+$audio.srcElement = 
+
+$gameMenu.appendChild($resetBTN);
+$gameMenu.appendChild($saveGameBTN);
+$gameMenu.appendChild($movesCount);
+$gameMenu.appendChild($fieldSize);
+$gameMenu.appendChild($solvePuzzleBTN);
 
 let arr = [], ei,ej;
 
@@ -47,7 +54,9 @@ function chunk (arr, size) {
   return res;
 }
 
-const swap = (arr,i1,j1,i2,j2) => {				
+const swap = (arr,i1,j1,i2,j2) => {		
+    //console.log(i1)
+		
     let temp = arr[i1][j1];
 	arr[i1][j1] = arr[i2][j2];
     arr[i2][j2] = temp;
@@ -101,7 +110,7 @@ function unduplicate(arr) {
 function makeTimer() {
     let $timer = (!document.querySelector('.timer')) ? makeElem('div', 'timer') : document.querySelector('.timer');
     $timer.innerHTML = '';
-    $body.appendChild($timer);
+    $gameMenu.appendChild($timer);
     let constDate = Date.parse(new Date());
 
     const checkTime = () => {
@@ -261,51 +270,66 @@ class Game {
 
         $gameBoard.innerHTML = '';
         if (!size) size = $fieldSize.value;
+        counter = 0;
+        $movesCount.innerHTML = String(counter);
+
+        console.log(counter);
         let cells = [];
         for(let i = 0; i < size; ++i){
             arr[i] = []
             for(let j = 0; j < size; ++j){
                 arr[i][j] = (i+1==size && j+1==size) ? '' : i*size + j + 1;
+
             }
+
         }
             let sequence = this.cellsShuffle(cells, arr, size);
             let order = 0;
-            for(let i = 0; i < size; ++i){
-                let $row = makeElem('div', 'row');
-                let tempArr = []
-                for(let j = 0; j < size; ++j){
-                    order++;
-                    let cell = new Cell(i, j, arr[i][j], order, size);
-                    cell.dom.addEventListener('click', cell.moveCell);
-                    cell.dom.setAttribute('draggable', true);
+            this.renderCells(sequence, arr, order, size, cells)
 
-                    cell.drag(cell.dom, $row);
-                    tempArr.push(cell);
-                    $row.appendChild(cell.dom);
-                }
-            cells.push(tempArr);
-            $gameBoard.appendChild($row);					
-        }
-
-        
-        //this.sizeField();
         $solvePuzzleBTN.addEventListener('click', ()=>{
             game.solvePuzzle(cells, sequence, size);
         })
+        $saveGameBTN.addEventListener('click', ()=>{
+            this.saveGame(cells);
+        });
+        window.addEventListener('onbeforeunload', () =>{
+            game.saveGame(cells);
+        })
         makeTimer();
-        //this.solvePuzzle(cells);
-        //console.log(cell.order);
-        /*cells.forEach(item=>{
-            let goal = cells.find(x=>x.oreder = item.value);
-            console.log(item.posX)
-            console.log(manhattan(item, goal))
-            aStar(cells, manhattan(item, goal), item.posX, goal.posX);
-            
+        if (get('gameState') !== '') {
+            if (document.querySelectorAll('revive-game').length === 0) {
+                let $reviveGame = makeElem('button', 'revive-game', 'Revive game');
+                let $lowerGameMenu = makeElem('div', 'game-menu');
+                $body.appendChild($lowerGameMenu);
+                $lowerGameMenu.prepend($reviveGame);
+                $reviveGame.addEventListener('click', () => {
+                    game.getSavedGame(arr, size);
+                })
+            }
 
-        })*/
+        }
 
-        //this.isSolved(cells);
         return cells;
+    }
+
+    renderCells(sequence = null, arr, order=null, size, cells) {
+        for(let i = 0; i < size; ++i){
+            let $row = makeElem('div', 'row');
+            let tempArr = []
+            for(let j = 0; j < size; ++j){
+                order++;
+                let cell = new Cell(i, j, arr[i][j], order, size);
+                cell.dom.addEventListener('click', cell.moveCell);
+                cell.dom.setAttribute('draggable', true);
+
+                cell.drag(cell.dom, $row);
+                tempArr.push(cell);
+                $row.appendChild(cell.dom);
+            }
+        cells.push(tempArr);
+        $gameBoard.appendChild($row);					
+    }
     }
 
     cellsShuffle(arrCells, arr, size) {
@@ -314,32 +338,35 @@ class Game {
         ej = size-1;
         let sequence = [];
         let swapMean = 0;
-        for(let i = 0; i < 1600; ++i)
-            switch(Math.round((size-1)*Math.random())){
-                case 0: 
-                    if(ei != 0) {
-                        swapMean = swap(arr,ei,ej,--ei,ej); 
-                        break; // up
-                    }
-                case 1: 
-                    if(ej != (size-1)) {
-                        swapMean = swap(arr,ei,ej,ei, ++ej); 
-                        break; // right
-                    }
-                case 2: 
-                    if(ei != (size-1)) {
-                        swapMean = swap(arr,ei,ej,++ei,ej); 
-                        break; // down
-                    }
-                case 3: 
-                    if(ej != 0) {
-                        swapMean = swap(arr,ei,ej,ei,--ej); // left
-                    }
-                    console.log(swapMean)
+        for(let i = 0; i < 1600; ++i){
+            if (Math.round((size-1)*Math.random()) == 0) {
+                if(ei != 0) {
+                    swapMean = swap(arr,ei,ej,--ei,ej); 
+
+                }
+            }
+            else if (Math.round((size-1)*Math.random()) == 1) {
+                if(ej != (size-1)) {
+                    swapMean = swap(arr,ei,ej,ei, ++ej); 
+
+                }
+            }
+            else if (Math.round((size-1)*Math.random()) == 2) {
+                if(ei != (size-1)) {
+                    swapMean = swap(arr,ei,ej,++ei,ej); 
+
+                }
+            }
+            else if (Math.round((size-1)*Math.random()) == 3) {
+                if(ej != 0) {
+                    swapMean = swap(arr,ei,ej,ei,--ej);
+                }
+            }
+            if (swapMean!==0) {
+                sequence.push(swapMean);
 
             }
-            sequence.push(swapMean);
-
+        }
         return sequence;
     }
 
@@ -355,24 +382,29 @@ class Game {
         set('gameState', JSON.stringify(cells));
     }
 
-    getSavedGame(){
-        let state = get('gameSate');
-        this.init()
+    getSavedGame(arr, size){
+        let state = JSON.parse((get('gameState')));
+        console.log(state)
+        this.renderCells(arr, size, state);
     }
 
     solvePuzzle(arrCells, sequence, size) {
-        sequence = sequence.reverse();
+        let sequenceUni = Array.from(new Set(sequence));
+        sequenceUni = sequenceUni.reverse();
 
-        for(let i = 0; i < sequence.length; ++i) {
-            swap(arr,sequence[i].i2,sequence[i].j2,sequence[i].i1,sequence[i].j1); 
+        for(let i = 0; i < sequenceUni.length; ++i) {
+            if (sequenceUni[i].i2){
+                swap(arr,sequenceUni[i].i2,sequenceUni[i].j2,sequenceUni[i].i1,sequenceUni[i].j1); 
+
+            }
         }
 
 
+        console.log(sequenceUni);
 
         let arrVal = getValuesCells(arrCells);
         let arrSP = makeArrDeep(arrVal, 4);
         console.log(arr);
-        console.log(sequence);
     }
 
     makeTimer() {       
@@ -407,10 +439,8 @@ class Game {
 let game = new Game();
 game.init(4);
 $resetBTN.addEventListener('click', () => game.init(4));
-let cellsArr = game.init(4);
-$saveGameBTN.addEventListener('click', ()=>{
-    game.saveGame(cellsArr)
-});
+//let cellsArr = game.init(4);
+
 $fieldSize.addEventListener('change', () =>{
     game.init($fieldSize.value.slice(0,1));
 })

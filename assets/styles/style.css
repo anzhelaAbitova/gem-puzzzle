@@ -21,9 +21,19 @@ body {
     border: 2px solid #029293;
 }
 
+.game-menu {
+    width: 90vw;
+    height: max-content;
+    margin: 3rem auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
 .reset-btn,
 .savegame-btn,
-.solve-puzzle {
+.solve-puzzle,
+.revive-game {
     appearance: none;
     outline: none;
     border: 3px solid #029293;
@@ -31,22 +41,23 @@ body {
     border-radius: 5px;
     transition: all .4s ease-in-out;
     position: relative;
-    margin: 0 auto;
-    transform: translateY(75%);
     padding: 5px 20px;
+    font-size: 0.85rem;
 }
 
 .reset-btn:hover,
 .savegame-btn:hover,
-.solve-puzzle:hover {
+.solve-puzzle:hover,
+.revive-game:hover {
     cursor: pointer;
     background-color: #029293;
     color: #FEFCFA;
 }
 
-.moves-count {
-    margin: 2rem auto;
+.moves-count,
+.timer {
     text-align: center;
+    width: 3rem;
 }
 
 
@@ -74,8 +85,7 @@ body {
     transition: transform .3s ease-in-out;
 }
 
-.wrapper,
-.twrapper {
+.wrapper {
     width: 100%;
     height: 100%;
 }
@@ -83,9 +93,4 @@ body {
 .empty {
     background-color: #FEFCFA;
     flex:1 1 max-content;
-}
-
-.timer {
-    margin: 0 auto;
-    text-align: center;
 }
