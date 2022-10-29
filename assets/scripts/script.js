@@ -20,6 +20,7 @@ let $imagesPuzzleBTN = makeElem('button', 'images-puzzle', 'Images puzzle');
 
 let counter = 0;
 let $movesCount = makeElem('div', 'moves-count', String(counter));
+let $timer = makeElem('div', 'timer');
 
 let $fieldSize = makeElem('select', 'field-size');
 
@@ -44,6 +45,11 @@ $gameMenu.appendChild($solvePuzzleBTN);
 
 $lowerGameMenu.appendChild($imagesPuzzleBTN);
 
+let pageWidth = document.documentElement.clientWidth;
+window.addEventListener('resize', ()=>{
+    pageWidth = document.documentElement.clientWidth;
+})
+
 let arr = [], ei,ej;
 
 function makeArrDeep (arr, width){
@@ -57,6 +63,15 @@ function chunk (arr, size) {
   console.log(arr.slice(i,i+size))
   return res;
 }
+
+let images = [];
+const makeImgArr = (arr) => {
+    for(let i=1;i<= 150;i++) {
+        arr.push(`./box/${i}.jpg`);
+    }
+    return arr;
+}
+
 
 const playSound = (e) => {
     $audio.currentTime = 0;
@@ -117,10 +132,10 @@ function unduplicate(arr) {
 
 
 function makeTimer() {
-    let $timer = (!document.querySelector('.timer')) ? makeElem('div', 'timer') : document.querySelector('.timer');
     $timer.innerHTML = '';
     $gameMenu.appendChild($timer);
-    let constDate = Date.parse(new Date());
+    let constDate = 0;
+    constDate = Date.parse(new Date());
 
     const checkTime = () => {
         let dateNow = Date.parse(new Date());
@@ -135,13 +150,14 @@ function makeTimer() {
 }
 
 class Cell {
-    constructor(posX, posY, value, order, gridSize) {
+    constructor(posX, posY, value, order, gridSize, image=null) {
         this.posX = posX;
         this.posY = posY;
         this.value = value;
         this.dom = this.makeCell();
         this.order = order;
         this.gridSize = gridSize;
+        this.image = image;
     }
 
     makeCell() {
@@ -153,31 +169,33 @@ class Cell {
     }
 
     moveCell(e) {
-        console.log(this);
         let event = e || window.e,
-		emptyPrev = this || event.srcElement || event.target,
-		i = (this.posX >= 0) ? this.posX : emptyPrev.id.charAt(0),
-        j = (this.posY >= 0) ? this.posY : emptyPrev.id.charAt(2);
+		emptyPrev = (this) ? this : event.srcElement || event.target,
+		i = (this.posX || this.posX >= 0) ? this.posX : emptyPrev.id.charAt(0),
+        j = (this.posY || this.posY >= 0) ? this.posY : emptyPrev.id.charAt(2);
 
+                console.log(event.srcElement);
 
         if((i == ei && Math.abs(j - ej) == 1) || (j == ej && Math.abs(i - ei) == 1))
     {					
-        let emptyNow = document.getElementById(`${ei} ${ej}`);
-        console.log(i);
+        let emptyNow = document.getElementById(`${ei} ${ej}`) || document.querySelector('.empty');
 
-        emptyNow.value = emptyPrev.value;
-        emptyNow.innerHTML = emptyPrev.dom.innerHTML;
+        emptyNow.image = emptyPrev.image || emptyPrev.style.backgroundImage;
+        emptyNow.value = emptyPrev.value || emptyPrev.innerHTML;
+        console.log(emptyPrev);
+
+        emptyNow.innerHTML = (emptyPrev.dom.innerHTML || emptyPrev.dom.innerHTML === '') ? emptyPrev.dom.innerHTML : emptyPrev.innerHTML;
         emptyNow.classList.remove('empty');
+        emptyNow.style.backgroundImage = `url(${emptyPrev.image})`;
+        emptyNow.style.backgroundPosition = `${emptyPrev.dom.style.backgroundPosition}`;
 
-
-        if (j - ej === 1 && i - ei === 0) {
-            emptyNow.style.transform = 'translate(0, 0)';
-
-        }
-
+        
         emptyPrev.dom.innerHTML = "";
         emptyPrev.value = '';
         emptyPrev.dom.classList.add('empty');
+        console.log(emptyNow.style.backgroundImage);
+        emptyPrev.dom.style.backgroundImage = '';
+
         countMoves();
         playSound();
         $movesCount.innerHTML = String(counter);
@@ -196,9 +214,10 @@ class Cell {
     }
 
     drag(cellDrag, cellDrop) {
+        console.log(this)
         cellDrag.addEventListener('drag', this.moveCell);
         cellDrop.addEventListener('dragover', (e)=>e.preventDefault());
-        cellDrop.addEventListener('drop', function() {this.appendChild(cellDrag)});
+        cellDrop.addEventListener('drop', this.moveCell);
     }
 }
 
@@ -281,9 +300,10 @@ const aStar = function (graph, heuristic, start, goal) {
 
 
 class Game {
-    init(size = 4) {
-
+    init = async (size = 4) =>{
+        $timer.innerHTML = '';
         $gameBoard.innerHTML = '';
+
         if (!size) size = $fieldSize.value;
         counter = 0;
         $movesCount.innerHTML = String(counter);
@@ -300,11 +320,22 @@ class Game {
         }
             let sequence = this.cellsShuffle(cells, arr, size);
             let order = 0;
-            this.renderCells(sequence, arr, order, size, cells)
+            makeImgArr(images);
+            this.renderCells(sequence, arr, order, size, cells);
+
+        $imagesPuzzleBTN.addEventListener('click', ()=>{
+            let ranImg = images[Math.floor(Math.random() * images.length)];
+            this.renderCells(sequence, arr, order, size, cells, ranImg);
+            $solvePuzzleBTN.addEventListener('click', ()=>{
+                game.solvePuzzle(cells, sequence, size, order);
+            })
+        })
+
 
         $solvePuzzleBTN.addEventListener('click', ()=>{
-            game.solvePuzzle(cells, sequence, size);
+            game.solvePuzzle(cells, sequence, size, order);
         })
+        console.log(cells)
         $saveGameBTN.addEventListener('click', ()=>{
             this.saveGame(cells);
         });
@@ -312,39 +343,53 @@ class Game {
             game.saveGame(cells);
         })
         makeTimer();
+
         if (get('gameState') !== '') {
-            if (document.querySelectorAll('revive-game').length === 0) {
-                let $reviveGame = makeElem('button', 'revive-game', 'Revive game');
+            if (!document.querySelector('.revive-game')) {
+                let $reviveGame = (!document.querySelector('revive-game')) ? makeElem('button', 'revive-game', 'Revive game') : document.querySelector('revive-game');
                 $lowerGameMenu.prepend($reviveGame);
                 $reviveGame.addEventListener('click', () => {
                     game.getSavedGame(arr, size);
                 })
             }
+
+
         }
 
         return cells;
     }
 
-    renderCells(sequence = null, arr, order=null, size, cells) {
+    renderCells(sequence = null, arr, order=null, size, cells, image=null) {
+        
+        $gameBoard.innerHTML = '';
         for(let i = 0; i < size; ++i){
             let $row = makeElem('div', 'row');
             let tempArr = []
             for(let j = 0; j < size; ++j){
                 order++;
-                let cell = new Cell(i, j, arr[i][j], order, size);
+                let cell = new Cell(i, j, arr[i][j], order, size, image);
                 cell.dom.addEventListener('click', function(e){
                     cell.moveCell(e);
                     game.isSolved(arr, cells, size);
                 });
                 cell.dom.setAttribute('draggable', true);
+                if (cell.value !== '') {
+                    cell.dom.style.backgroundImage = `url(${image})`;
+                    cell.dom.style.backgroundPosition = `-${(pageWidth/2)/size*(arr[i][j]%size)}px -${(pageWidth/2)/size*Math.round(i/size)}px`;
+                    cell.dom.style.backgroundSize = `${(pageWidth/2)}px`;
+                    if (image !== null) {
+                        cell.dom.style.color = `#FEFCFA`;
+                        cell.dom.style.textShadow = `1px 1px 4px #000`;
+                    }
+                }
+                    cell.drag(cell.dom, $row)
 
-                cell.drag(cell.dom, $row);
                 tempArr.push(cell);
                 $row.appendChild(cell.dom);
             }
         cells.push(tempArr);
         $gameBoard.appendChild($row);					
-    }
+        }
     }
 
     imagePuzzle(size, arrCells) {
@@ -389,14 +434,6 @@ class Game {
         return sequence;
     }
 
-    isSolvable(arr) {
-        let arrVal = getValuesCells(arrCells);
-        let S = 0;
-        arrVal.forEach(item=> {
-            item
-        })
-    }
-
     saveGame(cells) {
         set('gameState', JSON.stringify(cells));
     }
@@ -407,80 +444,65 @@ class Game {
         this.renderCells(arr, size, state);
     }
 
-    solvePuzzle(arrCells, sequence, size) {
+    solvePuzzle(arrCells, sequence, size, order, image) {
         let sequenceUni = Array.from(new Set(sequence));
         sequenceUni = sequenceUni.reverse();
 
         for(let i = 0; i < sequenceUni.length; ++i) {
             if (sequenceUni[i].i2){
                 swap(arr,sequenceUni[i].i2,sequenceUni[i].j2,sequenceUni[i].i1,sequenceUni[i].j1); 
-
             }
         }
 
-
         console.log(sequenceUni);
 
-        let arrVal = getValuesCells(arrCells);
-        let arrSP = makeArrDeep(arrVal, 4);
-        console.log(arr);
-    }
-
-    makeTimer() {       
-        let timer = (!document.querySelector('.timer')) ? makeElem('div', 'timer') : document.querySelector('.timer');
-        $body.appendChild(timer);
-        console.log(timer);
-        let date = new Date().toLocaleTimeString();
-        let text = document.createTextNode(date);
-        timer.innerHTML = date;
-        setTimeout(this.makeTimer, 1000);
+        //let arrVal = getValuesCells(arrCells);
+        //let arrSP = makeArrDeep(arrVal, 4);
+        
+        arrCells = arrCells.flat(1);
+        arrCells = arrCells.slice(0, size*size);
+        arrCells = arrCells.sort((prev, next)=>prev.value<next.value);
+        
+        console.log(arrCells);
+        $gameBoard.innerHTML = '';
+        if (image !== null) {
+            this.renderCells(sequence, arr, order, size, arrCells, image);
+        }
+        else {
+            this.renderCells(sequence, arr, order, size, arrCells);
+        }
     }
 
     isSolved(arr, arrCells, size){
-        let i=0;
         let solve = false;
 
 
         for (let i=0;i<size;i++) {
             for(let j=0;j<size;j++) {
-                if (i<size-1 &&j<size-1) {
-                    console.log(arrCells[i][j])
-                    if (arrCells[i][j].value === arrCells[i][j].order) {
+                console.log(arrCells[i][j].posX)
 
+                if (i!==size-1 &&j!==size-1) {
+
+                    if (arrCells[i][j].value === arrCells[i][j].order) {
                         solve=true;
                     }
                     else {
+                        console.log('testrrrrr')
                         return;
                     }
                 }
-                else {
-                    console.log('work')
-                }
-/*
-                    if (arrCells[size-1][size-1].value === '') {
-                        solve=true;
-                    }
-                    else {
-                        solve=false;
-
-                    }
-
-*/
-
             }
 
         }
         if (solve) {
-            let $congratulations = makeElem('div', 'congratulations', 'Congratulations! You won!');
-            $body.appendChild($congratulations);
+            if (!document.querySelector('.congratulations')) {
+                let $congratulations = makeElem('div', 'congratulations');
+                $congratulations.innerHTML = `Congratulations! You won! Time: ${$timer.innerHTML}. Moves: ${counter}`;
+                $body.appendChild($congratulations);
+            }
+
         }
         console.log(arrCells)
-
-    }
-
-    sizeField() {
-
-           // game.init($fieldSize.value.slice(0,1));
 
     }
 }
@@ -489,7 +511,6 @@ class Game {
 let game = new Game();
 game.init(4);
 $resetBTN.addEventListener('click', () => game.init(4));
-//let cellsArr = game.init(4);
 
 $fieldSize.addEventListener('change', () =>{
     game.init($fieldSize.value.slice(0,1));
