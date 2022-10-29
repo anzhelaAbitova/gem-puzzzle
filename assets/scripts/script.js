@@ -355,7 +355,6 @@ class Game {
         $timer.innerHTML = '';
         $gameBoard.innerHTML = '';
 
-        let savedGamescount = 1;
         if (!size) size = $fieldSize.value;
         counter = 0;
         $movesCount.innerHTML = String(counter);
@@ -504,9 +503,9 @@ class Game {
         return sequence;
     }
 
-    saveGame(cells, savedGamescount) {
-        set(`gameState${savedGamescount}`, JSON.stringify(cells));
-        savedGamescount++;
+    saveGame(cells) {
+        set(`gameState`, JSON.stringify(cells));
+
     }
 
     getSavedGame(sequence, size, order, image=null){
