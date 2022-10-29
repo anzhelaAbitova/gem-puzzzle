@@ -19,7 +19,8 @@ body {
     border: 2px solid #029293;
 }
 
-.reset-btn {
+.reset-btn,
+.savegame-btn {
     appearance: none;
     outline: none;
     border: 3px solid #029293;
@@ -32,11 +33,19 @@ body {
     padding: 5px 20px;
 }
 
-.reset-btn:hover {
+.reset-btn:hover,
+.savegame-btn:hover {
     cursor: pointer;
     background-color: #029293;
     color: #FEFCFA;
 }
+
+.moves-count {
+    margin: 2rem auto;
+    text-align: center;
+}
+
+
 
 .row {
     width: 100%;

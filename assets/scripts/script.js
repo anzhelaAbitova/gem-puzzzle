@@ -12,17 +12,37 @@ const makeElem = (type, className, text= '') => {
 
 let $gameBoard = makeElem('div', 'game-board');
 let $resetBTN = makeElem('button', 'reset-btn', 'New game');
+let $saveGameBTN = makeElem('button', 'savegame-btn', 'Save game');
+
+let counter = 0;
+let $movesCount = makeElem('div', 'moves-count', String(counter));
+
+let $fieldSize = makeElem('select', 'field-size', 'Choose size of the field');
+for (let i=3;i<9;i++) {
+    let option = new Option(`${i}x${i}`, `${i}x${i}`);
+    $fieldSize.appendChild(option);
+    if (i===4){option.selected = true}
+}
 
 window.addEventListener('DOMContentLoaded', () => {
     let game = new Game();
     game.init();
-	$resetBTN.addEventListener('click', () => game.init());
+    $resetBTN.addEventListener('click', () => game.init());
+    let cellsArr = game.init();
+    $saveGameBTN.addEventListener('click', ()=>{
+        game.saveGame(cellsArr)
+    });
 })
+
 
 $body.appendChild($gameBoard);
 $body.appendChild($resetBTN);
+$body.appendChild($saveGameBTN);
+$body.appendChild($movesCount);
+$body.appendChild($fieldSize);
 
 let arr = [], ei,ej;
+
 
 const swap = (arr,i1,j1,i2,j2) => {				
     let temp = arr[i1][j1];
@@ -30,23 +50,30 @@ const swap = (arr,i1,j1,i2,j2) => {
 	arr[i2][j2] = temp;
 }
 
+const countMoves = () => {
+    return counter++;
+
+}
+
+const get = (name, subst = null) => JSON.parse(window.localStorage.getItem(name) || subst);
+const set =  (name, value) => window.localStorage.setItem(name, JSON.stringify(value));
+
 function makeTimer() {
     let $timer = (!document.querySelector('.timer')) ? makeElem('div', 'timer') : document.querySelector('.timer');
     $body.appendChild($timer);
-    //console.log(timer);
     let constDate = Date.parse(new Date());
-    $timer.innerHTML = constDate;
 
-    //console.log(constDate)
-    return function(constDate){
-        console.log('work')
+    const checkTime = () => {
         let dateNow = Date.parse(new Date());
-        let time = String(dateNow - constDate);
-        $timer.innerHTML = time.replace(/$0{3}/);
+        let time = dateNow - constDate;
+        time = time / 1000;
+        
+        $timer.innerHTML = `${String(Math.floor(time / 60))}:${String(Math.floor(time % 60))}`;
 
-        console.log(time);
-        setTimeout(makeTimer, 1000);
-    }
+        setTimeout(checkTime, 1000);
+    };
+    setTimeout(checkTime, 1000);
+   
 
 }
 
@@ -67,13 +94,12 @@ class Cell {
     }
 }
 
-let testcell = new Cell(0, 0, 2);
-console.log(testcell);
 
 class Game {
     init() {
         let $wrapper = makeElem('div', 'wrapper');
         $gameBoard.innerHTML = '';
+        let cells = [];
         for(let i = 0; i < 4; ++i){
             arr[i] = []
             for(let j = 0; j < 4; ++j){
@@ -92,101 +118,63 @@ class Game {
         for(let i = 0; i < 4; ++i){
             let $row = makeElem('div', 'row');
             for(let j = 0; j < 4; ++j){
-                let $cell = makeElem('div', 'cell', arr[i][j]);
-                    $cell.id = `${i} ${j}`;
-                    $cell.onclick = this.moveCell;
+                let cell = new Cell(i, j, arr[i][j]);
+                cell.dom.addEventListener('click', this.moveCell);
+                cell.dom.setAttribute('draggable', true);
 
-                    $row.appendChild($cell);
-                    if (arr[i][j] === '') $cell.classList.add('empty');
-                    this.dragNDrop($cell, $row);
+                this.drag(cell.dom, $row);
+                cells.push(cell);
+                $row.appendChild(cell.dom);
             }
             $wrapper.appendChild($row);					
         }
-        if($gameBoard.childNodes.length == 1)
-        $gameBoard.removeChild($gameBoard.firstChild);	
-        $gameBoard.appendChild($wrapper);	
 
-        let date = Date.parse(new Date());
-        makeTimer(date);
+        $gameBoard.appendChild($wrapper);	
+        
+        this.sizeField();
+        makeTimer();
+        return cells;
     }
 
     moveCell(e) {
         let event = e || window.e,
-		el = event.srcElement || event.target,
-		i = el.id.charAt(0),
-        j = el.id.charAt(2);
-    console.log(ei)
+		emptyPrev = event.srcElement || event.target,
+		i = emptyPrev.id.charAt(0),
+        j = emptyPrev.id.charAt(2);
+
         if((i == ei && Math.abs(j - ej) == 1) || (j == ej && Math.abs(i - ei) == 1))
     {					
-		document.getElementById(`${ei} ${ej}`).innerHTML = el.innerHTML;
-		el.innerHTML = "";
+        let emptyNow = document.getElementById(`${ei} ${ej}`);
+
+        emptyNow.innerHTML = emptyPrev.innerHTML;
+        emptyNow.classList.remove('empty');
+  
+        emptyPrev.innerHTML = "";
+        emptyPrev.classList.add('empty');
+        countMoves();
+        $movesCount.innerHTML = String(counter);
 		ei = i;
 		ej = j;
-		let q = true;
+		let victory = true;
 		for(i = 0; i < 4; ++i)
 			for(j = 0; j < 4; ++j)
                 if(i + j != 6 && document.getElementById(`${i} ${j}`).innerHTML != i*4 + j + 1)
                 {
-					q = false;
+					victory = false;
 					break;
 				}
-				if(q) alert("Victory!");
+				if(victory) alert("Victory!");
 	}
     }
 
-    dragNDrop(cell, row) {
+    drag(cellDrag, cellDrop) {
+        cellDrag.addEventListener('drag', this.moveCell);
+        cellDrop.addEventListener('dragover', (e)=>e.preventDefault());
+        cellDrop.addEventListener('drop', function() {this.appendChild(cellDrag)});
+    }
 
-        let currentDroppable = null;
-        cell.onmousedown = function(event) {
-    
-          let shiftX = event.clientX - cell.getBoundingClientRect().left;
-          let shiftY = event.clientY - cell.getBoundingClientRect().top;
-    
-          cell.style.position = 'absolute';
-          cell.style.zIndex = 1000;
-          row.append(cell);
-    
-          moveAt(event.pageX, event.pageY);
-    
-          function moveAt(pageX, pageY) {
-            cell.style.left = pageX - cell.offsetWidth / 2 + 'px';
-            cell.style.top = pageY - cell.offsetHeight / 2 + 'px';
-          }
-    
-          function onMouseMove(event) {
-            moveAt(event.pageX, event.pageY);
-    
-            cell.hidden = true;
-            let elemBelow = document.elementFromPoint(event.clientX, event.clientY);
-            cell.hidden = false;
-    
-            if (!elemBelow) return;
-    
-            let droppableBelow = elemBelow.closest('.empty');
-            if (currentDroppable != droppableBelow) {
-              if (currentDroppable) { 
-                leaveDroppable(currentDroppable);
-              }
-              currentDroppable = droppableBelow;
-              if (currentDroppable) { 
-                enterDroppable(currentDroppable);
-              }
-            }
-          }
-    
-          document.addEventListener('mousemove', onMouseMove);
-    
-          cell.onmouseup = function() {
-            document.removeEventListener('mousemove', onMouseMove);
-            cell.onmouseup = null;
-          };
-    
-        };
-    
-        const enterDroppable = (elem) => elem.style.background = 'pink';
-        const leaveDroppable = (elem) => elem.style.background = '';
-    
-        cell.ondragstart = () => false;
+    saveGame(cells) {
+        set('gameState', JSON.stringify(cells));
     }
 
     makeTimer() {       
@@ -197,5 +185,12 @@ class Game {
         let text = document.createTextNode(date);
         timer.innerHTML = date;
         setTimeout(this.makeTimer, 1000);
+    }
+
+    sizeField() {
+        $fieldSize.addEventListener('change', ()=>{
+            console.log($fieldSize.value);
+
+        })
     }
 }
