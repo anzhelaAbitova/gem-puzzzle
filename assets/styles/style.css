@@ -33,7 +33,8 @@ body {
 .reset-btn,
 .savegame-btn,
 .solve-puzzle,
-.revive-game {
+.revive-game,
+.images-puzzle {
     appearance: none;
     outline: none;
     border: 3px solid #029293;
@@ -48,7 +49,8 @@ body {
 .reset-btn:hover,
 .savegame-btn:hover,
 .solve-puzzle:hover,
-.revive-game:hover {
+.revive-game:hover,
+.images-puzzle:hover {
     cursor: pointer;
     background-color: #029293;
     color: #FEFCFA;
