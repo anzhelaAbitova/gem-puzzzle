@@ -64,7 +64,7 @@ export default class Game {
         if (utils.get('gameState') !== '') {
             if (!document.querySelector('.revive-game')) {
                 let $reviveGame = (!document.querySelector('revive-game')) ? utils.makeElem('button', 'revive-game', 'Revive game') : document.querySelector('revive-game');
-                body.elements.lowerGameMenu.prepend($reviveGame);
+                body.elements.gameMenu.prepend($reviveGame);
                 $reviveGame.addEventListener('click', () => {
                     game.getSavedGame(sequence, size, order, cells);
                 })
