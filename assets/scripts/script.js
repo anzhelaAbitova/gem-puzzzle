@@ -10,6 +10,8 @@ const makeElem = (type, className, text= '') => {
     return el;
 }
 
+let $sorry= makeElem('div', 'sorry', 'Пожайлуйста, проверьте мою работу в среду. Сегодня с утра обнаружила несколько багов, пытаюсь поправить.')
+
 let $gameBoard = makeElem('div', 'game-board');
 let $resetBTN = makeElem('button', 'reset-btn', 'New game');
 let $saveGameBTN = makeElem('button', 'savegame-btn', 'Save game');
@@ -34,6 +36,7 @@ for (let i=3;i<9;i++) {
 $body.prepend($gameBoard);
 $body.prepend($gameMenu);
 $body.prepend($audio);
+$body.prepend($sorry);
 $audio.src = 'sound.mp3';
 $body.appendChild($lowerGameMenu);
 
@@ -137,7 +140,7 @@ function unduplicate(arr) {
 
 function makeTimer() {
     $timer.innerHTML = '';
-    $gameMenu.appendChild($timer);
+    $lowerGameMenu.appendChild($timer);
     let constDate = 0;
     constDate = Date.parse(new Date());
 
@@ -152,6 +155,20 @@ function makeTimer() {
     };
     setTimeout(checkTime, 1000);
 }
+
+function dragStart(ev) {
+    ev.dataTransfer.effectAllowed='move';
+    ev.dataTransfer.setData("Text", ev.target.getAttribute('id'));
+    ev.dataTransfer.setDragImage(ev.target,100,100);
+    return true;
+ }
+
+function dragDrop(ev) {
+    var data = ev.dataTransfer.getData("Text");
+    ev.target.appendChild(document.getElementById(data));
+    ev.stopPropagation();
+    return false;
+ }
 
 class Cell {
     constructor(posX, posY, value, order, gridSize, image=null) {
@@ -184,7 +201,9 @@ class Cell {
     {					
         let emptyNow = document.getElementById(`${ei} ${ej}`) || document.querySelector('.empty');
 
-        emptyNow.image = emptyPrev.image || emptyPrev.style.backgroundImage;
+        if (emptyPrev.image || emptyPrev.style.backgroundImage) {
+            emptyNow.image = emptyPrev.image || emptyPrev.style.backgroundImage;
+        }
         emptyNow.value = emptyPrev.value || emptyPrev.innerHTML;
         console.log(emptyPrev);
 
@@ -217,11 +236,16 @@ class Cell {
 	}
     }
 
-    drag(cellDrag, cellDrop) {
-        console.log(this)
-        cellDrag.addEventListener('drag', this.moveCell);
-        cellDrop.addEventListener('dragover', (e)=>e.preventDefault());
-        cellDrag.addEventListener('drop', cellDrag.moveCell);
+    drag(cellDrag) {
+        //console.log(this)
+        cellDrag.addEventListener('drag', dragStart);
+        let emptyNow = document.querySelector('.empty');
+
+        if (emptyNow) {
+            emptyNow.addEventListener('dragenter', (e)=>e.preventDefault());
+            emptyNow.addEventListener('dragover', (e)=>e.preventDefault());
+            emptyNow.addEventListener('drop', dragDrop);
+        }
     }
 }
 
@@ -376,21 +400,26 @@ class Game {
             for(let j = 0; j < size; ++j){
                 order++;
                 let cell = new Cell(i, j, arr[i][j], order, size, image);
+                if (cell.dom.innerHTML !== '') {
+                    cell.dom.setAttribute('draggable', true);
+                }
+                else {
+                    cell.dom.setAttribute('draggable', false);
+                }
                 cell.dom.addEventListener('click', function(e){
                     cell.moveCell(e);
                     game.isSolved(arr, cells, size);
                 });
-                cell.dom.setAttribute('draggable', true);
                 if (cell.value !== '') {
-                    cell.dom.style.backgroundImage = `url(${image})`;
-                    cell.dom.style.backgroundPosition = `-${(pageWidth/2)/size*(arr[i][j]%size)}px -${(pageWidth/2)/size*Math.round(i/size)}px`;
-                    cell.dom.style.backgroundSize = `${(pageWidth/2)}px`;
                     if (image !== null) {
+                        cell.dom.style.backgroundImage = `url(${image})`;
+                        cell.dom.style.backgroundPosition = `-${(pageWidth/2)/size*(((arr[i][j]%size)+1)%size)}px -${(pageWidth/2)/size*i}px`;
+                        cell.dom.style.backgroundSize = `${(pageWidth/2)}px`;
                         cell.dom.style.color = `#FEFCFA`;
                         cell.dom.style.textShadow = `1px 1px 4px #000`;
                     }
                 }
-                    cell.drag(cell.dom, $row)
+                    cell.drag(cell.dom);
 
                 tempArr.push(cell);
                 $row.appendChild(cell.dom);
