@@ -10,7 +10,6 @@ const makeElem = (type, className, text= '') => {
     return el;
 }
 
-let $sorry= makeElem('div', 'sorry', 'Пожайлуйста, проверьте мою работу в среду. Сегодня с утра обнаружила несколько багов, пытаюсь поправить.')
 
 let $gameBoard = makeElem('div', 'game-board');
 let $resetBTN = makeElem('button', 'reset-btn', 'New game');
@@ -36,17 +35,17 @@ for (let i=3;i<9;i++) {
 $body.prepend($gameBoard);
 $body.prepend($gameMenu);
 $body.prepend($audio);
-$body.prepend($sorry);
 $audio.src = 'sound.mp3';
 $body.appendChild($lowerGameMenu);
 
 $gameMenu.appendChild($resetBTN);
 $gameMenu.appendChild($saveGameBTN);
-$gameMenu.appendChild($movesCount);
 $gameMenu.appendChild($fieldSize);
 $gameMenu.appendChild($solvePuzzleBTN);
 
 $lowerGameMenu.appendChild($imagesPuzzleBTN);
+$lowerGameMenu.appendChild($movesCount);
+
 
 let pageWidth = document.documentElement.clientWidth;
 window.addEventListener('resize', ()=>{
@@ -189,28 +188,35 @@ class Cell {
         return el;
     }
 
-    moveCell(e) {
+    moveCell(e, drop=null) {
+        console.log(e)
         let event = e || window.e,
 		emptyPrev = (this) ? this : event.srcElement || event.target,
 		i = (this.posX || this.posX >= 0) ? this.posX : emptyPrev.id.charAt(0),
         j = (this.posY || this.posY >= 0) ? this.posY : emptyPrev.id.charAt(2);
 
-                console.log(event.srcElement);
+                console.log(emptyPrev);
 
         if((i == ei && Math.abs(j - ej) == 1) || (j == ej && Math.abs(i - ei) == 1))
     {					
-        let emptyNow = document.getElementById(`${ei} ${ej}`) || document.querySelector('.empty');
+        let emptyNow =  document.getElementById(`${ei} ${ej}`);
 
-        if (emptyPrev.image || emptyPrev.style.backgroundImage) {
+        console.log(this)
+        if (drop !== null) {
+            emptyNow = drop || document.querySelector('.empty');
+        }
+        
+        if (emptyPrev.image !== null || emptyPrev.dom.style.backgroundImage) {
             emptyNow.image = emptyPrev.image || emptyPrev.style.backgroundImage;
+            emptyNow.style.backgroundImage = `url(${emptyPrev.image})`;
+            emptyNow.style.backgroundPosition = `${emptyPrev.dom.style.backgroundPosition}`;
         }
         emptyNow.value = emptyPrev.value || emptyPrev.innerHTML;
         console.log(emptyPrev);
 
         emptyNow.innerHTML = (emptyPrev.dom.innerHTML || emptyPrev.dom.innerHTML === '') ? emptyPrev.dom.innerHTML : emptyPrev.innerHTML;
         emptyNow.classList.remove('empty');
-        emptyNow.style.backgroundImage = `url(${emptyPrev.image})`;
-        emptyNow.style.backgroundPosition = `${emptyPrev.dom.style.backgroundPosition}`;
+
 
         
         emptyPrev.dom.innerHTML = "";
@@ -237,14 +243,31 @@ class Cell {
     }
 
     drag(cellDrag) {
-        //console.log(this)
-        cellDrag.addEventListener('drag', dragStart);
+       //console.log(cellDrag)
+        cellDrag.dom.addEventListener('dragstart', (e)=>{
+            //e.dataTransfer.setData("application/my-app", e.target.id);
+            //e.dataTransfer.dropEffect = "move";
+            //console.log(e.target)
+            cellDrag.moveCell();
+        });
         let emptyNow = document.querySelector('.empty');
 
         if (emptyNow) {
-            emptyNow.addEventListener('dragenter', (e)=>e.preventDefault());
-            emptyNow.addEventListener('dragover', (e)=>e.preventDefault());
-            emptyNow.addEventListener('drop', dragDrop);
+            emptyNow.addEventListener('dragenter', (e)=>e.preventDefault);
+            emptyNow.addEventListener('dragover', (e)=>{
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+            });
+            emptyNow.addEventListener('drop', (e)=>{
+                //e.preventDefault();
+                this.moveCell(e, e.target);
+                //const data = e.dataTransfer.getData("application/my-app");
+                //e.target.appendChild(document.getElementById(data));
+
+                //e.preventDefault();
+                console.log(this);
+                //dragDrop(cellDrag);
+            });
         }
     }
 }
@@ -413,13 +436,23 @@ class Game {
                 if (cell.value !== '') {
                     if (image !== null) {
                         cell.dom.style.backgroundImage = `url(${image})`;
-                        cell.dom.style.backgroundPosition = `-${(pageWidth/2)/size*(((arr[i][j]%size)+1)%size)}px -${(pageWidth/2)/size*i}px`;
+
+                        if (cell.value%size!==0) {
+                            cell.dom.style.backgroundPosition = `-${(pageWidth/2)/size*((((cell.value%size))-1)%size)}px -${(pageWidth/2)/size*i}px`;
+                            console.log((pageWidth/2)/size*((((cell.value-1)%size))%size)-1);
+                        }
+                        else if (cell.value%size===0) {
+                            cell.dom.style.backgroundPosition = `-${(pageWidth/2)/size*3}px -${(pageWidth/2)/size*i}px`;
+
+                        }
+
+                        
                         cell.dom.style.backgroundSize = `${(pageWidth/2)}px`;
                         cell.dom.style.color = `#FEFCFA`;
                         cell.dom.style.textShadow = `1px 1px 4px #000`;
                     }
                 }
-                    cell.drag(cell.dom);
+                    cell.drag(cell);
 
                 tempArr.push(cell);
                 $row.appendChild(cell.dom);
@@ -500,15 +533,20 @@ class Game {
             if (sequenceUni[i].i2){
                 swap(arr,sequenceUni[i].i2,sequenceUni[i].j2,sequenceUni[i].i1,sequenceUni[i].j1); 
             }
-        }      
+        }   
+        /*   
         arrCells = arrCells.flat(1);
         arrCells = arrCells.slice(0, size*size);
         arrCells = arrCells.sort(byField('value'));
         arrCells.push(arrCells[0]);
         arrCells.shift();
-
-        let arrVal = getValuesCells(arrCells);
-        let arrSP = makeArrDeep(arrVal, size);
+*/
+        let arrSolve = [];
+        for (let i=1;i<size*size;i++) {
+            arrSolve.push(`${i}`);
+        }
+        arrSolve.push('');
+        let arrSP = makeArrDeep(arrSolve, size);
 
         $gameBoard.innerHTML = '';
         if (image !== null) {
